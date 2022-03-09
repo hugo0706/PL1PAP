@@ -2,6 +2,7 @@
 #include "device_launch_parameters.h"
 #include <iostream>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define WIDTH 16
 
@@ -12,7 +13,7 @@ __global__ void convolucion(int* c_d, int* a_d, int* b_d)
 
     for (int dcol = -1; dcol <= 1; dcol++) {
         for (int drow = -1; drow <= 1; drow++) {
-            c_d[(col - 1) + ((row - 1) * WIDTH)] += a_d[(col + dcol) + (row + drow) * (WIDTH + 2)] * b_d[(dcol + 1) + (drow + 1) * 3];
+            c_d[(col - 1) + ((row - 1) * (WIDTH-2))] += a_d[(col + dcol) + (row + drow) * WIDTH] * b_d[(dcol + 1) + (drow + 1) * 3];
         }
     }
 }
@@ -46,17 +47,17 @@ int main()
     srand(time(NULL));
 
     for (int i = 0; i < (WIDTH * WIDTH); i++) {
-        a_h[i] = rand() % 256;
+        a_h[i] = rand()%256;
     }
 
     for (int i = 0; i < 9; i++) {
-        b_h[i] = rand() % 10;
+        b_h[i] = rand()%10;
     }
 
     cudaMemcpy(a_d, a_h, (WIDTH * WIDTH) * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(b_d, b_h, 9 * sizeof(int), cudaMemcpyHostToDevice);
 
-    dim3 blockDim(16,16);
+    dim3 blockDim(WIDTH-2,WIDTH-2);
 
     convolucion << < 1, blockDim >> > (c_d, a_d, b_d);
     cudaMemcpy(c_h, c_d, ((WIDTH - 2) * (WIDTH - 2)) * sizeof(int), cudaMemcpyDeviceToHost);
