@@ -2,8 +2,10 @@
 #include "device_launch_parameters.h"
 #include <iostream>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define WIDTH 16
+#define TILE 4
 
 __global__ void convolucion(int* c_d, int* a_d, int* b_d)
 {
@@ -11,13 +13,13 @@ __global__ void convolucion(int* c_d, int* a_d, int* b_d)
     int bx = blockIdx.x; int by = blockIdx.y;
     int tx = threadIdx.x; int ty = threadIdx.y;
 
-    int col = (bx * ((WIDTH / 2) - 1) + tx);
-    int row = (by * ((WIDTH / 2) - 1) + ty);
+    int col = (bx * TILE + tx);
+    int row = (by * TILE + ty);
 
-    if (tx < (WIDTH / 2) && tx > 0 && ty < (WIDTH / 2) && ty > 0) {
+    if (col > 0 && col < WIDTH - 1 && row > 0 && row < WIDTH - 1) {
         for (int dcol = -1; dcol <= 1; dcol++) {
             for (int drow = -1; drow <= 1; drow++) {
-                c_d[(col - 1) + ((row - 1) * ((WIDTH)-2))] += a_d[(col + dcol) + (row + drow) *(WIDTH/2)]* b_d[(dcol + 1) + (drow + 1) * 3];
+                c_d[(col - 1) + ((row - 1) * ((WIDTH)-2))] += a_d[(col + dcol) + (row + drow) * (WIDTH)] * b_d[(dcol + 1) + (drow + 1) * 3];
             }
         }
     }
@@ -52,18 +54,18 @@ int main()
     srand(time(NULL));
 
     for (int i = 0; i < (WIDTH * WIDTH); i++) {
-        a_h[i] =  rand() % 256;
+        a_h[i] = rand() % 2;
     }
 
     for (int i = 0; i < 9; i++) {
-        b_h[i] = rand() % 10;
+        b_h[i] = 1;
     }
 
     cudaMemcpy(a_d, a_h, (WIDTH * WIDTH) * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(b_d, b_h, 9 * sizeof(int), cudaMemcpyHostToDevice);
 
-    dim3 blockDim(((WIDTH / 2) + 1), ((WIDTH / 2) + 1));
-    dim3 gridDim(2, 2);
+    dim3 blockDim(TILE, TILE);
+    dim3 gridDim(WIDTH / TILE, WIDTH / TILE);
 
     convolucion << < gridDim, blockDim >> > (c_d, a_d, b_d);
     cudaMemcpy(c_h, c_d, ((WIDTH - 2) * (WIDTH - 2)) * sizeof(int), cudaMemcpyDeviceToHost);
